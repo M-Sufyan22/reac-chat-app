@@ -13,13 +13,99 @@ const facebooklogin = () => {
             }
             firebase.database().ref('/').child(`users/${user.uid}`).set(create_user)
                 .then(() => {
-                    alert(`${user.displayName}, Wellcome to chat`)
+                    alert(`${user.displayName}, Welcome to chat`)
                 }).catch(function(error) {
                     alert("Some Error Occurred While Logging" + error.message)
                 })
         }).catch(function(error) {
             console.log(error.message)
         });
+    }
+}
+const googleLogin = () => {
+    return (dispatch) => {
+        var provider = new firebase.auth.GoogleAuthProvider();
+        provider.addScope('https://www.googleapis.com/auth/contacts.readonly');
+        firebase.auth()
+            .signInWithPopup(provider)
+            .then((result) => {
+                var user = result.user;
+                let create_user = {
+                    userName: user.displayName,
+                    userEmail: user.email,
+                    userUid: user.uid,
+                    userProfile: user.photoURL
+                }
+                firebase.database().ref('/').child(`users/${user.uid}`).set(create_user)
+                    .then(() => {
+                        alert(`${user.displayName}, Welcome to chat`)
+                    }).catch(function(error) {
+                        alert("Some Error Occurred While Logging" + error.message)
+                    })
+                console.log(user)
+            }).catch((error) => {
+                var errorCode = error.code;
+                var errorMessage = error.message;
+                var email = error.email;
+                var credential = error.credential;
+                console.log(email, errorCode, errorMessage)
+            });
+    }
+}
+const emailLogin = (email, password, userName, profile, ImgName) => {
+    return (dispatch) => {
+        // console.log("===>", email, "===>", password, "==>", userName, "===>", profile, "====>", ImgName)
+
+        if (profile !== null && profile !== undefined && profile !== "") {
+            firebase
+                .auth()
+                .createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    // Signed up
+                    var user = userCredential.user;
+
+                    var uploadTask = firebase.storage().ref('usersProfiles/' + ImgName).put(profile);
+                    uploadTask.snapshot.ref.getDownloadURL().then(function(url) {
+                        user
+                            .updateProfile({
+                                displayName: userName,
+                                photoURL: url,
+                            })
+                            .then(function() {
+                                var Cuser = firebase.auth().currentUser;
+                                let create_user = {
+                                    userName: Cuser.displayName,
+                                    userEmail: Cuser.email,
+                                    userUid: Cuser.uid,
+                                    userProfile: Cuser.photoURL
+                                }
+                                console.log("updated successfully!");
+                                firebase.database().ref('/').child(`users/${user.uid}`).set(create_user)
+                                    .then(() => {
+                                        alert(`${user.displayName}, Welcome to chat`)
+                                        check_current_user()
+                                    }).catch(function(error) {
+                                        alert("Some Error Occurred While Logging" + error.message)
+                                    })
+                            })
+                            .catch(function(error) {
+                                // An error happened.
+                                console.log(error);
+                                alert(error.message)
+                            });
+                    }).catch((error) => {
+                        console.log(error.message)
+                    });
+                })
+                .catch((error) => {
+
+                    var errorMessage = error.message;
+                    alert(errorMessage);
+                    // ..
+                });
+        } else {
+            alert("please fill the form correctly");
+        }
     }
 }
 
@@ -34,13 +120,14 @@ const check_current_user = () => {
 }
 
 const get_All_Users = () => {
+    let allUsers;
     return (dispatch) => {
-        firebase.database().ref('/').child('users').on('child_added', (data) => {
-            let allUsers = data.val();
+        firebase.database().ref('users').once('value').then((snapshot) => {
+            allUsers = Object.values(snapshot.val());
             dispatch({ type: "getAllUsers", payload: allUsers })
-        })
-
+        });
     }
+
 }
 
 const get_old_chats = (data) => {
@@ -60,8 +147,11 @@ const get_old_chats = (data) => {
     }
 }
 
-const sendMessage = (udata, data, cUser) => {
+const sendMessage = (event, udata, data) => {
+
     return (dispatch) => {
+        event.preventDefault();
+        var cUser = firebase.auth().currentUser;
 
         let chatUSerUid = udata.chatuser.userUid;
         let currentUserUid = cUser.uid;
@@ -101,6 +191,7 @@ const sendMessage = (udata, data, cUser) => {
                 }
             }
             // console.log(sendMsg.sendTo, "==>", sendMsg.senderDetails, "==>", sendMsg.message)
+            // console.log(chatUSerUid)
         const uid_merge = (uid1, uid2) => {
             if (uid1 < uid2) {
                 return uid1 + uid2
@@ -131,4 +222,4 @@ const signOut = () => {
     }
 }
 
-export { facebooklogin, check_current_user, get_All_Users, get_old_chats, sendMessage, signOut, }
+export { facebooklogin, googleLogin, emailLogin, check_current_user, get_All_Users, get_old_chats, sendMessage, signOut, }

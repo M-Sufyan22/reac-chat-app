@@ -13,11 +13,13 @@ const store = (state = authData, action) => {
                 currentuser: action.payload
             })
         case "getAllUsers":
+
             return ({
                 ...state,
-                Allusers: [...state.Allusers, action.payload]
+                Allusers: action.payload
             })
         case "getOldchats":
+
             return ({
                 ...state,
                 oldChats: action.payload
